@@ -1,0 +1,194 @@
+✅ 1. SQL Queries:
+
+CREATE DATABASE IF NOT EXISTS user_db;
+
+USE user_db;
+
+CREATE TABLE IF NOT EXISTS users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL
+);
+
+
+✅ 2. Install MySQL2:
+
+npm install mysql2
+
+✅ 3. Database Connection: in lib/db.ts
+
+import mysql from 'mysql2/promise';
+import { Connection } from 'mysql2/promise';
+
+let db: Connection | null = null;
+
+export const getDB = async (): Promise<Connection> => {
+  if (!db) {
+    db = await mysql.createConnection({
+      host: 'localhost',
+      user: 'your_mysql_username',
+      password: 'your_mysql_password',
+      database: 'user_db',
+    });
+  }
+  return db;
+};
+
+
+✅ 4. API Route in app/api/register/route.ts
+
+import { NextRequest, NextResponse } from 'next/server';
+import { getDB } from '@/lib/db';
+import { ResultSetHeader } from 'mysql2';
+
+export async function POST(req: NextRequest) {
+  const { name, email, password } = await req.json();
+
+  if (!name || !email || !password) {
+    return NextResponse.json({ message: 'All fields are required' }, { status: 400 });
+  }
+
+  try {
+    const db = await getDB();
+    const [result] = await db.execute<ResultSetHeader>(
+      'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
+      [name, email, password]
+    );
+
+    return NextResponse.json(
+      { message: 'User registered successfully', userId: result.insertId },
+      { status: 200 }
+    );
+  } catch (err: any) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return NextResponse.json({ message: 'Email already exists' }, { status: 409 });
+    }
+    return NextResponse.json({ message: 'Database error', error: err.message }, { status: 500 });
+  }
+}
+
+
+✅ 5. Client-side Form UI in App Router
+app/register/page.tsx
+
+'use client';
+
+import { useState, ChangeEvent, FormEvent } from 'react';
+
+interface FormData {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export default function RegisterPage() {
+  const [formData, setFormData] = useState<FormData>({ name: '', email: '', password: '' });
+  const [message, setMessage] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    });
+
+    const data = await res.json();
+    setLoading(false);
+    setMessage(data.message);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-100 to-indigo-200 p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 space-y-6 transition-all">
+        <h2 className="text-2xl font-bold text-center text-gray-800">Create an Account</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Name</label>
+            <input
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="John Doe"
+              className="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="john@example.com"
+              className="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Password</label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="••••••••"
+              className="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-xl transition-all"
+            disabled={loading}
+          >Register</button>
+        </form>
+
+        {message && (
+          <div className="text-center text-sm text-gray-700 mt-2 bg-gray-100 rounded-xl py-2">
+            {message}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
+✅ Folder Structure Overview
+
+app/
+├── api/
+│   └── register/
+│       └── route.ts
+├── register/
+│   └── page.tsx
+lib/
+└── db.ts
+
+
+
+✅ npm install cookie
+
+
+
+
+
+
+
+
+
+
+
